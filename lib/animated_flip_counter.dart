@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
 class AnimatedFlipCounter extends StatelessWidget {
@@ -56,6 +56,8 @@ class AnimatedFlipCounter extends StatelessWidget {
   /// set the value to `MainAxisAlignment.start`.
   final MainAxisAlignment mainAxisAlignment;
 
+  final bool useDecimalsDigits;
+
   const AnimatedFlipCounter({
     Key? key,
     required this.value,
@@ -69,6 +71,7 @@ class AnimatedFlipCounter extends StatelessWidget {
     this.thousandSeparator,
     this.decimalSeparator = '.',
     this.mainAxisAlignment = MainAxisAlignment.center,
+    this.useDecimalsDigits = false,
   })  : assert(fractionDigits >= 0, "fractionDigits must be non-negative"),
         assert(wholeDigits >= 0, "wholeDigits must be non-negative"),
         super(key: key);
@@ -85,7 +88,7 @@ class AnimatedFlipCounter extends StatelessWidget {
 
     // Find the text color (or red as warning). This is so we can avoid using
     // `Opacity` and `AnimatedOpacity` widget, for better performance.
-    final Color color = style.color ?? Color(0xffff0000);
+    final Color color = style.color ?? const Color(0xffff0000);
 
     // Convert the decimal value to int. For example, if we want 2 decimal
     // places, we will convert 5.21 into 521.
@@ -142,7 +145,7 @@ class AnimatedFlipCounter extends StatelessWidget {
               tween: Tween(end: value < 0 ? 1.0 : 0.0),
               builder: (_, double v, __) => Center(
                 widthFactor: v,
-                child: Opacity(opacity: v, child: Text("-")),
+                child: Opacity(opacity: v, child: const Text("-")),
               ),
             ),
           ),
@@ -151,6 +154,7 @@ class AnimatedFlipCounter extends StatelessWidget {
           // Draw the decimal point
           if (fractionDigits != 0) Text(decimalSeparator),
           // Draw digits after the decimal point
+
           for (int i = digits.length - fractionDigits; i < digits.length; i++)
             _SingleDigitFlipCounter(
               key: ValueKey("decimal$i"),
@@ -158,8 +162,15 @@ class AnimatedFlipCounter extends StatelessWidget {
               duration: duration,
               curve: curve,
               size: prototypeDigit.size,
-              color: color,
+              fontSize:
+                  useDecimalsDigits && i > digits.length - fractionDigits + 1
+                      ? style.fontSize
+                      : null,
+              color: useDecimalsDigits && i > digits.length - fractionDigits + 1
+                  ? Theme.of(context).primaryColor
+                  : color,
             ),
+
           if (suffix != null) Text(suffix!),
         ],
       ),
@@ -173,6 +184,7 @@ class _SingleDigitFlipCounter extends StatelessWidget {
   final Curve curve;
   final Size size;
   final Color color;
+  final double? fontSize;
 
   const _SingleDigitFlipCounter({
     Key? key,
@@ -181,6 +193,7 @@ class _SingleDigitFlipCounter extends StatelessWidget {
     required this.curve,
     required this.size,
     required this.color,
+    this.fontSize,
   }) : super(key: key);
 
   @override
@@ -192,8 +205,10 @@ class _SingleDigitFlipCounter extends StatelessWidget {
       builder: (_, double value, __) {
         final whole = value ~/ 1;
         final decimal = value - whole;
-        final w = size.width;
-        final h = size.height;
+        final w =
+            fontSize != null ? size.width - size.width * 0.15 : size.width;
+        final h =
+            fontSize != null ? size.height - size.height * 0.055 : size.height;
 
         return SizedBox(
           width: w,
@@ -223,13 +238,16 @@ class _SingleDigitFlipCounter extends StatelessWidget {
     required double opacity,
   }) {
     // Try to avoid using the `Opacity` widget when possible, for performance.
-    final child;
+    late final Widget child;
     if (color.opacity == 1) {
       // If the text style does not involve transparency, we can modify
       // the text color directly.
       child = Text(
         '$digit',
-        style: TextStyle(color: color.withOpacity(opacity.clamp(0, 1))),
+        style: TextStyle(
+          color: color.withOpacity(opacity.clamp(0, 1)),
+          fontSize: fontSize != null ? fontSize! - fontSize! * 0.15 : null,
+        ),
       );
     } else {
       // Otherwise, we have to use the `Opacity` widget.
